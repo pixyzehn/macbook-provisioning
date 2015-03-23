@@ -1,0 +1,138 @@
+- hosts: localhost
+  connection: local
+  gather_facts: no           
+  sudo: no
+  vars:
+    homebrew_taps:
+      - homebrew/binary
+      - homebrew/dupes
+      - caskroom/cask
+      - sanemat/font
+    homebrew_packages:
+      - { name: readline }
+      - { name: openssl, state: linked }
+      - { name: python }
+      - { name: ansible }
+      - { name: coreutils }
+      - { name: git }
+      - { name: zsh, install_options: disable-etcdir }
+      - { name: zsh-completions }
+      - { name: wget }
+      - { name: curl }
+      - { name: cmake }
+      - { name: autoconf }
+      - { name: automake }
+      - { name: pkg-config }
+      - { name: ctags }
+      - { name: tree }
+      - { name: lv }
+      - { name: nkf }
+      - { name: jq }
+      - { name: go }
+      - { name: direnv }
+      - { name: peco }
+      - { name: hub }
+      - { name: tig }
+      - { name: fish }
+      - { name: ruby-build }
+      - { name: rbenv }
+      - { name: plenv }
+      - { name: pyenv }
+      - { name: tofrodos }
+      - { name: lha }
+      - { name: flow }
+      - { name: mysql }
+      - { name: sqlite }
+      - { name: redis }
+      - { name: imagemagick }
+      - { name: mercurial }
+      - { name: packer }
+      - { name: xz }
+      - { name: socat }
+      - { name: rlwrap }
+      - { name: w3m }
+      - { name: tmux }
+      - { name: reattach-to-user-namespace }
+      - { name: phantomjs }
+      - { name: graphviz }
+      - { name: autojump }
+      - { name: gibo }
+      - { name: source-highlight }
+      - { name: z }
+      - { name: carthage }
+    homebrew_cask_packages:
+      - { name: iterm2 }
+      - { name: google-chrome }
+      - { name: adobe-reader }
+      - { name: dropbox }
+      - { name: java }
+      - { name: skype }
+      - { name: slack }
+      - { name: karabiner }
+      - { name: flux }
+      - { name: dash }
+      - { name: skitch }
+      - { name: atom }
+      - { name: kobito }
+      - { name: vagrant }
+      - { name: virtualbox }
+      - { name: kindle }
+      - { name: google-japanese-ime }
+
+  tasks:
+    - name: Add repository of homebrew tap...
+      homebrew_tap: tap={{ item }} state=present
+      with_items: homebrew_taps
+
+    - name: Update homebrew...
+      homebrew: update_homebrew=yes
+
+    # brew
+    - name: Install brew package...
+      homebrew: name={{ item.name }} state={{ item.state|default('latest') }} install_options={{ item.install_options|default() }}
+      with_items: homebrew_packages
+      register: brew_result
+    - name: Create a directory to save package information...
+      file: path=brew_info state=directory
+    - name: Save package information...
+      shell: brew info {{ item }} > brew_info/{{ item }}
+      with_items: brew_result.results | selectattr('changed') | map(attribute='item') | map(attribute='name') | list
+
+    # cask
+    - name: Install homebrew-cask...
+      homebrew: name=brew-cask state=latest
+    - name: Install cask package...
+      homebrew_cask: name={{ item.name }} state={{ item.state|default('installed') }}
+      with_items: homebrew_cask_packages
+      register: cask_result
+    - name: Create a directory to save cask package information...
+      file: path=cask_info state=directory
+    - name: Save cask package information...
+      shell: brew cask info {{ item }} > cask_info/{{ item }}
+      with_items: cask_result.results | selectattr('changed') | map(attribute='item') | map(attribute='name') | list
+
+    # oh-my-zsh
+    - name: Install oh-my-zsh...
+      shell: curl -L https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh | sh
+      args:
+        creates: ~/.oh-my-zsh/
+
+    # Ricty
+    - name: Install xquartz for creating Ricty...
+      homebrew_cask: name=xquartz
+    - name: Install fontforge for creating Ricty...
+      homebrew: name=fontforge
+    - name: Install Ricty...
+      homebrew: name=ricty
+    - name: Copy created font file...
+      shell: cp -f $(brew --cellar ricty)/*/share/fonts/Ricty*.ttf ~/Library/Fonts/
+      args:
+        creates: ~/Library/Fonts/Ricty-Bold.ttf
+      notify: run fc-cache
+
+  handlers:
+    - name: install neobundle
+      command: git clone git://github.com/Shougo/neobundle.vim ~/.vim/bundle/neobundle.vim
+    - name: run fc-cache
+      shell: fc-cache -vf
+
