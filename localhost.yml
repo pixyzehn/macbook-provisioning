@@ -46,7 +46,6 @@
       - { name: redis }
       - { name: imagemagick }
       - { name: mercurial }
-      - { name: packer }
       - { name: xz }
       - { name: socat }
       - { name: rlwrap }
